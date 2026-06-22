@@ -30,6 +30,13 @@ jobs:
       - name: Generate briefing
         run: python scripts/generate_digest.py --output report.md
 
+      - name: Send briefing through QQ Mail
+        env:
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python scripts/send_email.py --report report.md
+
       - name: Create or update today's issue
         uses: actions/github-script@v7
         with:

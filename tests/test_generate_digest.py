@@ -15,6 +15,7 @@ from generate_digest import (  # noqa: E402
     select_articles,
     title_matches_category,
 )
+from send_email import build_message, parse_recipients  # noqa: E402
 
 
 RSS_FIXTURE = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -59,6 +60,13 @@ class DigestTests(unittest.TestCase):
     def test_category_filter_rejects_non_news_pages(self):
         self.assertFalse(title_matches_category("Senior Scientist job with Research Institute", "科学"))
         self.assertFalse(title_matches_category("New Jersey", "娱乐"))
+
+    def test_email_recipients_and_subject(self):
+        recipients = parse_recipients("one@qq.com, two@qq.com")
+        message = build_message("# 每日资讯简报 | 2026-06-22\n\n内容\n", "sender@qq.com", recipients)
+        self.assertEqual(recipients, ["one@qq.com", "two@qq.com"])
+        self.assertEqual(message["Subject"], "每日资讯简报 | 2026-06-22")
+        self.assertEqual(message["To"], "one@qq.com, two@qq.com")
 
 
 if __name__ == "__main__":
