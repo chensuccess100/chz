@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   issues: write
+  models: read
 
 concurrency:
   group: daily-news-briefing
@@ -28,6 +29,8 @@ jobs:
           python-version: "3.12"
 
       - name: Generate briefing
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/generate_digest.py --output report.md
 
       - name: Send briefing through QQ Mail

@@ -9,9 +9,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from generate_digest import (  # noqa: E402
     Article,
+    clean_summary,
     clean_title,
+    google_news_article_id,
     normalize_title,
     parse_feed,
+    render_digest,
     select_articles,
     title_matches_category,
 )
@@ -23,6 +26,7 @@ RSS_FIXTURE = b"""<?xml version="1.0" encoding="UTF-8"?>
   <item>
     <title>AI research milestone - Reuters</title>
     <link>https://example.com/a</link>
+    <description><![CDATA[AI research milestone shows a new system can help scientists screen candidate medicines faster.]]></description>
     <pubDate>Mon, 22 Jun 2026 10:00:00 GMT</pubDate>
     <source url="https://reuters.com">Reuters</source>
   </item>
@@ -36,6 +40,7 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(len(articles), 1)
         self.assertEqual(articles[0].title, "AI research milestone")
         self.assertEqual(articles[0].source, "Reuters")
+        self.assertIn("candidate medicines", articles[0].summary)
 
     def test_normalize_title_ignores_punctuation(self):
         self.assertEqual(normalize_title("AI: New Model!"), "ainewmodel")
@@ -53,6 +58,17 @@ class DigestTests(unittest.TestCase):
     def test_clean_title_unescapes_html(self):
         self.assertEqual(clean_title("Science &amp; Space - NASA", "NASA"), "Science & Space")
 
+    def test_clean_summary_removes_html_and_repeated_title(self):
+        summary = clean_summary(
+            "<p>AI research milestone - <b>Scientists reported a useful result.</b></p>",
+            "AI research milestone",
+        )
+        self.assertEqual(summary, "Scientists reported a useful result.")
+
+    def test_google_news_article_id_extracts_rss_article_token(self):
+        token = google_news_article_id("https://news.google.com/rss/articles/CBMiExample?oc=5")
+        self.assertEqual(token, "CBMiExample")
+
     def test_category_filter_rejects_unrelated_reuters_story(self):
         self.assertFalse(title_matches_category("Police seize cocaine shipment", "AI"))
         self.assertTrue(title_matches_category("New AI model improves protein design", "AI"))
@@ -67,6 +83,20 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(recipients, ["one@qq.com", "two@qq.com"])
         self.assertEqual(message["Subject"], "每日资讯简报 | 2026-06-22")
         self.assertEqual(message["To"], "one@qq.com, two@qq.com")
+
+    def test_render_digest_includes_summary_and_source_link(self):
+        generated_at = datetime(2026, 6, 22, 20, tzinfo=timezone.utc)
+        article = Article(
+            "AI research milestone",
+            "https://example.com/a",
+            "Reuters",
+            generated_at,
+            "Scientists reported a useful result readers can understand without opening the link.",
+        )
+        digest = render_digest({"AI": [article]}, generated_at, [])
+        self.assertIn("### AI research milestone", digest)
+        self.assertIn("- 要点：Scientists reported", digest)
+        self.assertIn("- 原文：https://example.com/a", digest)
 
 
 if __name__ == "__main__":
